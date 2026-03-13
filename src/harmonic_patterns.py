@@ -105,6 +105,242 @@ class HarmonicDetector(object):
                         pass
         return zigzag_pattern
 
+    def get_zigzag_original(self, df: pd.DataFrame, period: int):
+        """
+        Original O(n²) implementation using talib. Preserved for backward compatibility.
+        """
+        zigzag_pattern = []
+        direction = 0
+        changed = False
+        for idx in range(1, len(df)):
+            highest_high = ta.MAX(df.high[:idx], timeperiod=period)[-1]
+            lowest_low = ta.MIN(df.low[:idx], timeperiod=period)[-1]
+
+            new_high = df.high[idx] >= highest_high
+            new_low = df.low[idx] <= lowest_low
+
+            if new_high and not new_low:
+                if direction != 1:
+                    direction = 1
+                    changed = True
+                elif direction == 1:
+                    changed = False
+            elif not new_high and new_low:
+                if direction != -1:
+                    direction = -1
+                    changed = True
+                elif direction == -1:
+                    changed = False
+
+            if new_high or new_low:
+                if changed or len(zigzag_pattern)==0:
+                    if direction == 1:
+                        pat = ['H', df.high[idx], idx]
+                        zigzag_pattern.append(pat)
+                    elif direction == -1:
+                        pat = ['L', df.low[idx], idx]
+                        zigzag_pattern.append(pat)
+                else:
+                    if direction == 1 and df.high[idx] > zigzag_pattern[-1][1]:
+                        pat = ['H', df.high[idx], idx]
+                        zigzag_pattern[-1] = pat
+                    elif direction == -1 and df.low[idx] < zigzag_pattern[-1][1]:
+                        pat = ['L', df.low[idx], idx]
+                        zigzag_pattern[-1] = pat
+                    else:
+                        pass
+        return zigzag_pattern
+
+    def get_zigzag_pandas(self, df: pd.DataFrame, period: int):
+        """
+        Optimized O(n) implementation using pandas rolling window.
+        
+        Args:
+            df: DataFrame with 'high' and 'low' columns
+            period: Lookback period for zigzag calculation
+            
+        Returns:
+            List of [direction, price, index] entries where direction is 'H' or 'L'
+        """
+        rolling_high = df.high.rolling(window=period, min_periods=1).max()
+        rolling_low = df.low.rolling(window=period, min_periods=1).min()
+        
+        zigzag_pattern = []
+        direction = 0
+        changed = False
+        
+        for idx in range(1, len(df)):
+            highest_high = rolling_high.iloc[idx]
+            lowest_low = rolling_low.iloc[idx]
+            
+            new_high = df.high.iloc[idx] >= highest_high
+            new_low = df.low.iloc[idx] <= lowest_low
+            
+            if new_high and not new_low:
+                if direction != 1:
+                    direction = 1
+                    changed = True
+                elif direction == 1:
+                    changed = False
+            elif not new_high and new_low:
+                if direction != -1:
+                    direction = -1
+                    changed = True
+                elif direction == -1:
+                    changed = False
+            
+            if new_high or new_low:
+                if changed or len(zigzag_pattern) == 0:
+                    if direction == 1:
+                        pat = ['H', df.high.iloc[idx], idx]
+                        zigzag_pattern.append(pat)
+                    elif direction == -1:
+                        pat = ['L', df.low.iloc[idx], idx]
+                        zigzag_pattern.append(pat)
+                else:
+                    if direction == 1 and df.high.iloc[idx] > zigzag_pattern[-1][1]:
+                        pat = ['H', df.high.iloc[idx], idx]
+                        zigzag_pattern[-1] = pat
+                    elif direction == -1 and df.low.iloc[idx] < zigzag_pattern[-1][1]:
+                        pat = ['L', df.low.iloc[idx], idx]
+                        zigzag_pattern[-1] = pat
+        return zigzag_pattern
+
+    def get_zigzag_deque(self, df: pd.DataFrame, period: int):
+        """
+        Optimized O(n) implementation using deque for sliding window.
+        
+        Args:
+            df: DataFrame with 'high' and 'low' columns
+            period: Lookback period for zigzag calculation
+            
+        Returns:
+            List of [direction, price, index] entries where direction is 'H' or 'L'
+        """
+        from collections import deque
+        
+        high_window = deque(maxlen=period)
+        low_window = deque(maxlen=period)
+        
+        zigzag_pattern = []
+        direction = 0
+        changed = False
+        
+        for idx in range(1, len(df)):
+            high_window.append(df.high.iloc[idx])
+            low_window.append(df.low.iloc[idx])
+            
+            if len(high_window) == period:
+                highest_high = max(high_window)
+                lowest_low = min(low_window)
+            else:
+                highest_high = df.high.iloc[:idx+1].max()
+                lowest_low = df.low.iloc[:idx+1].min()
+            
+            new_high = df.high.iloc[idx] >= highest_high
+            new_low = df.low.iloc[idx] <= lowest_low
+            
+            if new_high and not new_low:
+                if direction != 1:
+                    direction = 1
+                    changed = True
+                elif direction == 1:
+                    changed = False
+            elif not new_high and new_low:
+                if direction != -1:
+                    direction = -1
+                    changed = True
+                elif direction == -1:
+                    changed = False
+            
+            if new_high or new_low:
+                if changed or len(zigzag_pattern) == 0:
+                    if direction == 1:
+                        pat = ['H', df.high.iloc[idx], idx]
+                        zigzag_pattern.append(pat)
+                    elif direction == -1:
+                        pat = ['L', df.low.iloc[idx], idx]
+                        zigzag_pattern.append(pat)
+                else:
+                    if direction == 1 and df.high.iloc[idx] > zigzag_pattern[-1][1]:
+                        pat = ['H', df.high.iloc[idx], idx]
+                        zigzag_pattern[-1] = pat
+                    elif direction == -1 and df.low.iloc[idx] < zigzag_pattern[-1][1]:
+                        pat = ['L', df.low.iloc[idx], idx]
+                        zigzag_pattern[-1] = pat
+        return zigzag_pattern
+
+    def get_zigzag_numba(self, df: pd.DataFrame, period: int):
+        """
+        Optimized O(n) implementation using Numba JIT compilation.
+        Requires numba package: pip install numba
+        
+        Args:
+            df: DataFrame with 'high' and 'low' columns
+            period: Lookback period for zigzag calculation
+            
+        Returns:
+            List of [direction, price, index] entries where direction is 'H' or 'L'
+        """
+        try:
+            from numba import jit
+        except ImportError:
+            raise ImportError("numba is required for get_zigzag_numba. Install with: pip install numba")
+        
+        @jit(nopython=True, cache=True)
+        def _compute_zigzag(high_arr, low_arr, period):
+            n = len(high_arr)
+            zigzag = []
+            direction = 0
+            changed = False
+            
+            for idx in range(1, n):
+                start_idx = max(0, idx - period + 1)
+                highest_high = high_arr[idx]
+                lowest_low = low_arr[idx]
+                
+                for j in range(start_idx, idx):
+                    if high_arr[j] > highest_high:
+                        highest_high = high_arr[j]
+                    if low_arr[j] < lowest_low:
+                        lowest_low = low_arr[j]
+                
+                new_high = high_arr[idx] >= highest_high
+                new_low = low_arr[idx] <= lowest_low
+                
+                if new_high and not new_low:
+                    if direction != 1:
+                        direction = 1
+                        changed = True
+                    elif direction == 1:
+                        changed = False
+                elif not new_high and new_low:
+                    if direction != -1:
+                        direction = -1
+                        changed = True
+                    elif direction == -1:
+                        changed = False
+                
+                if new_high or new_low:
+                    if changed or len(zigzag) == 0:
+                        if direction == 1:
+                            zigzag.append(('H', high_arr[idx], idx))
+                        elif direction == -1:
+                            zigzag.append(('L', low_arr[idx], idx))
+                    else:
+                        if direction == 1 and high_arr[idx] > zigzag[-1][1]:
+                            zigzag[-1] = ('H', high_arr[idx], idx)
+                        elif direction == -1 and low_arr[idx] < zigzag[-1][1]:
+                            zigzag[-1] = ('L', low_arr[idx], idx)
+            
+            return zigzag
+        
+        high_arr = df.high.values
+        low_arr = df.low.values
+        result = _compute_zigzag(high_arr, low_arr, period)
+        
+        return [[d, p, int(i)] for d, p, i in result]
+
     def detect_abcd(self, current_pat: list, predict:bool=False, predict_mode:str='direct'):
         """
         AB=CD is a common pattern in harmonic trading, it is many pattern's inner structure
