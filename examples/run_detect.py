@@ -7,8 +7,8 @@ from datetime import datetime
 import signal, threading, os, time
 import logging
 
-from IPython.core.debugger import set_trace
-from IPython.terminal.embed import embed
+# from IPython.core.debugger import set_trace
+# from IPython.terminal.embed import embed
 
 import time
 from multiprocessing import Pool, TimeoutError
@@ -17,8 +17,8 @@ from functools import partial
 import os, sys
 import asyncio
 
-import nest_asyncio
-nest_asyncio.apply()
+# import nest_asyncio
+# nest_asyncio.apply()
 
 import inspect
 #import ccxt.async_support as ccxt
@@ -35,12 +35,12 @@ import httpx
 
 logger = Logger('Harmonic')
 
-from .harmonic_functions import HarmonicDetector
+from src.harmonic_functions import HarmonicDetector
 
 
-from .settings import NOTIFY_URL
-from .settings import MAIN_SYMBOLS, ALT_SYMBOLS, PERIODS, ERROR_RATE
-from .settings import PROCESS_COUNT
+from src.settings import NOTIFY_URL
+from src.settings import MAIN_SYMBOLS, ALT_SYMBOLS, PERIODS, ERROR_RATE
+from src.settings import PROCESS_COUNT
 
 
 import redis
@@ -121,9 +121,9 @@ def main():
 
     ccxt_options = {'proxies': PROXIES}
 
-    ok = 'okex'
+    # ok = 'okex'
     bn = 'binance'
-    hb = 'huobipro'
+    # hb = 'huobipro'
 
     notify_msgs = []
     while True:
@@ -132,7 +132,7 @@ def main():
         #call_repl(engine)
 
         detector = HarmonicDetector(error_allowed=ERROR_RATE, strict=True)
-        client = hb
+        client = bn
 
         symbols = [*MAIN_SYMBOLS, *ALT_SYMBOLS]
 
@@ -141,15 +141,16 @@ def main():
         try:
             with Pool(PROCESS_COUNT) as p:
                 # 检测主流币和山寨是否出现谐波模式
+                PREDICT = True
                 r  = p.map_async(partial(search, client,  periods=PERIODS,  predict=PREDICT, only_last=True, alert=True, plot=False), [[si] for si in symbols])
                 # 检测平台币
-                r1 = p.map_async(partial(search,  hb, periods=PERIODS,  predict=PREDICT, only_last=True, alert=True, plot=False), [['HT/USDT']])
-                r2 = p.map_async(partial(search, ok, periods=PERIODS,  predict=PREDICT, only_last=True, alert=True, plot=False), [['OKB/USDT']])
-                r3 = p.map_async(partial(search, bn, periods=PERIODS,  predict=PREDICT, only_last=True, alert=True, plot=False), [['BNB/USDT']])
+                # r1 = p.map_async(partial(search,  hb, periods=PERIODS,  predict=PREDICT, only_last=True, alert=True, plot=False), [['HT/USDT']])
+                # r2 = p.map_async(partial(search, ok, periods=PERIODS,  predict=PREDICT, only_last=True, alert=True, plot=False), [['OKB/USDT']])
+                # r3 = p.map_async(partial(search, bn, periods=PERIODS,  predict=PREDICT, only_last=True, alert=True, plot=False), [['BNB/USDT']])
                 r.get(timeout=360)
-                r1.get(timeout=120)
-                r2.get(timeout=120)
-                r3.get(timeout=120)
+                # r1.get(timeout=120)
+                # r2.get(timeout=120)
+                # r3.get(timeout=120)
         except TimeoutError as e:
             logger.error(e)
             continue
